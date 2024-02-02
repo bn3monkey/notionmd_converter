@@ -1,6 +1,10 @@
 # Before Using it, please run `python -m pip install markdown-it-py`
 # Before using it, please run `python -m pip install pandas`
 # Before using it, please run `python -m pip install tabulate`
+# Before using it, please run `python -m pip install linkify-it-py`
+
+# Before using it, please run `python -m pip install xhtml2pdf `
+
 from markdown_it import MarkdownIt
 import os
 import glob
@@ -10,6 +14,8 @@ import urllib.parse
 import sys
 import unicodedata
 import pandas
+from xhtml2pdf import pisa   
+
 
 print(sys.getdefaultencoding())
 
@@ -100,14 +106,35 @@ def createIntermediateDirectory(input_path : str, output_path : str, directorypa
             print(f"copy File : {file_path} -> {new_full_file_path}")
             shutil.copy(file_path, new_full_file_path)
 
+def createResourceDirectory(input_path : str, output_path : str) :
+    os.makedirs(output_path, exist_ok=True)
+    for root, dirs, files in os.walk(input_path) :
+        relative_path = os.path.relpath(root, input_path)
+        relative_path = relative_path.replace("\\", "/")
+        output_directory_path = os.path.join(output_path, relative_path)
+        if relative_path[0] != '.' :
+            os.makedirs(output_directory_path, exist_ok=True)
+
+        for file in files :
+            _, extension = os.path.splitext(file)
+            if extension.lower() in ['.jpg', '.png', '.bmp'] :
+                src_path = os.path.join(root, file)
+                dest_path = os.path.join(output_directory_path, file)
+                shutil.copy(src_path, dest_path)
 
 def collectAllMarkdownFiles(directory : str) :
     md_files = glob.glob(os.path.join(directory, "**/*.md"),recursive=True)
     return md_files
 
-def readMarkdownFile(filePath : str) :
+def readMarkdownFile(root_path : str, relative_path : str) :
     content = ""
-    with open(filePath, 'r', encoding='utf-8') as file :
+    with open(f"{root_path}/{relative_path}", 'r', encoding='utf-8') as file :
+        content = file.read()
+    return content
+
+def readHTMLFile(root_path : str, relative_path : str) :
+    content = ""
+    with open(f"{root_path}/{relative_path}", 'r', encoding='utf-8') as file :
         content = file.read()
     return content
 
@@ -135,8 +162,9 @@ def csvToTable(path : str) :
     table = df.to_markdown(index = False)
     return table
 
-def replace_csv(markdown_text, filePath) :
-    directoryname = os.path.dirname(filePath)
+def replace_csv(markdown_text, root_path, relative_path) :
+    full_path = f"{root_path}/{relative_path}"
+    directoryname = os.path.dirname(full_path)
 
     link_pattern = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
 
@@ -168,7 +196,74 @@ def replaceNewLineInMarkdownTable(text) :
 
     return text
 
+def collectAllMarkdownFileRelativePaths(root_path : str) :
+    paths = []
+    for root, dirs, files in os.walk(root_path) :
 
+        for file in files : 
+            if file.endswith(".md") :
+                file_path = os.path.join(root, file)
+                relative_file_path = os.path.relpath(file_path, root_path)
+                relative_file_path = relative_file_path.replace("\\", "/")
+                paths.append(relative_file_path)
+
+    return paths
+
+def collectAllHTMLFileRelativePaths(root_path : str) :
+    paths = []
+    for root, dirs, files in os.walk(root_path) :
+
+        for file in files : 
+            if file.endswith(".html") :
+                file_path = os.path.join(root, file)
+                relative_file_path = os.path.relpath(file_path, root_path)
+                relative_file_path = relative_file_path.replace("\\", "/")
+                paths.append(relative_file_path)
+
+    return paths
+
+def replaceLinkFromMarkdownToPDF(markdown_text) :
+    link_pattern = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
+
+    def replace_url(match) :
+        link_text, old_url = match.groups()
+        print(f"link_text : {link_text} old_url : {old_url}")
+        new_url = old_url.replace(".md", ".pdf")        
+        return f"[{link_text}]({new_url})"
+
+    updated_text = link_pattern.sub(replace_url, markdown_text)
+    return updated_text
+
+def createMarkdownFile(content : str, root_path : str, relative_path : str) :
+    full_path = f"{root_path}/{relative_path}"
+    directoryname = os.path.dirname(full_path)
+    os.makedirs(directoryname, exist_ok=True)
+
+    with open(full_path, "w", encoding="utf-8") as result_file :
+        result_file.write(content)
+
+def createHTMLFile(content, root_path, relative_path) :
+    full_path = f"{root_path}/{relative_path}"
+    directoryname = os.path.dirname(full_path)
+    os.makedirs(directoryname, exist_ok=True)
+
+    md = MarkdownIt('gfm-like').enable('table')
+    html = md.render(content)
+
+    html_path = full_path.replace(".md", ".html")
+    with open(html_path, "w") as result_file :
+        result_file.write(html)
+
+def createPDFFile(content : str, root_path : str, relative_path : str) :
+    full_path = f"{root_path}/{relative_path}"
+    print(f"fullpath : {full_path}")
+    directoryname = os.path.dirname(full_path)
+    os.makedirs(directoryname, exist_ok=True)
+
+    pdf_path = full_path.replace(".html", ".pdf")
+    with open(pdf_path, "w+b") as pdf_file :
+        pisa.CreatePDF(content, dest = pdf_file, encoding="utf-8")
+        
 
 if __name__ == "__main__" : 
     directory_paths, filename_paths = collectDirectoryAndFileNames("./test/input")
@@ -187,43 +282,50 @@ if __name__ == "__main__" :
     filepath_map = createFileNameMap(filename_paths)
     for key, value in filepath_map.items() :
         print(f"{key} -> {value}")
-    input("Press Enter!")
-
-    createIntermediateDirectory("./test/input", "./test/intermediate", directorypath_map, filepath_map)
-    # input("Press Enter!")
-
-    files = collectAllMarkdownFiles("./test/intermediate")
-    for file in files :
-        print(file)
-    # input("Press Enter!")
-
-    md = MarkdownIt("commonmark").enable('table')
-
-    count = 0
-    for file in files :
-        count = count + 1
-        content = readMarkdownFile(file)
-        print(f"======= File Name : {file} ======\n")
+   
+    createIntermediateDirectory("./test/input", "./test/markdown", directorypath_map, filepath_map)
+        
+    paths = collectAllMarkdownFileRelativePaths("./test/markdown")
+    for path in paths :
+        content = readMarkdownFile("./test/markdown", path)
+        print(f"======= File Name : {path} ======\n")
 
         print(content)
 
-        print(f"======= File Name : {file} ======\n")
+        print(f"======= File Name : {path} ======\n")
 
         converted_content = replace_link_urls(content)
         print(converted_content)
 
-        csv_converted_content = replace_csv(converted_content, file)
+        csv_converted_content = replace_csv(converted_content, "./test/markdown", path)
         print(csv_converted_content)
 
         newline_content = replaceNewLineInMarkdownTable(csv_converted_content)
         print(newline_content)
 
-        with open(file, "w") as mdfile :
-            mdfile.write(newline_content)
+        createMarkdownFile(newline_content, "./test/markdown", path)
 
-    
+    createResourceDirectory("./test/markdown", "./test/markdown-pdf")
+    paths = collectAllMarkdownFileRelativePaths("./test/markdown")
+    for path in paths :
+        content = readMarkdownFile("./test/markdown", path)
 
-          
+        converted_content = replaceLinkFromMarkdownToPDF(content)
+        print(converted_content)
+        
+        createMarkdownFile(converted_content, "./test/markdown-pdf", path)
+
+    createResourceDirectory("./test/markdown-pdf", "./test/html")
+    paths = collectAllMarkdownFileRelativePaths("./test/markdown-pdf")
+    for path in paths :
+        content = readMarkdownFile("./test/markdown-pdf", path)
+        createHTMLFile(content, "./test/html", path)
+
+    createResourceDirectory("./test/markdown-pdf", "./test/pdf")
+    paths = collectAllHTMLFileRelativePaths("./test/html")
+    for path in paths :
+        content = readHTMLFile("./test/html", path)
+        createPDFFile(content, "./test/pdf", path)     
 
 # print(f"======= File Parse Tree : {file} ======\n")
 
