@@ -5,6 +5,10 @@
 
 # Before using it, please run `python -m pip install xhtml2pdf `
 
+# Before run it, `source venv/Scripts/activate`
+# defendency markdown-it-py, pandas, tabulate``
+
+
 from markdown_it import MarkdownIt
 import os
 import glob
@@ -14,7 +18,7 @@ import urllib.parse
 import sys
 import unicodedata
 import pandas
-from xhtml2pdf import pisa   
+# from xhtml2pdf import pisa   
 
 
 print(sys.getdefaultencoding())
@@ -122,6 +126,14 @@ def createResourceDirectory(input_path : str, output_path : str) :
                 dest_path = os.path.join(output_directory_path, file)
                 shutil.copy(src_path, dest_path)
 
+def removeCSVFiles(directory : str) :
+    for root, dirs, files in os.walk(directory) :
+        for file in files :
+            _, extension = os.path.splitext(file)
+            if extension.lower() in ['.csv'] :
+                src_path = os.path.join(root, file)
+                os.remove(src_path)
+
 def collectAllMarkdownFiles(directory : str) :
     md_files = glob.glob(os.path.join(directory, "**/*.md"),recursive=True)
     return md_files
@@ -168,6 +180,7 @@ def replace_csv(markdown_text, root_path, relative_path) :
 
     link_pattern = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
 
+
     def replace_url(match) :
         link_text, old_url = match.groups()
         print(f"link_text : {link_text} old_url : {old_url}")
@@ -196,6 +209,34 @@ def replaceNewLineInMarkdownTable(text) :
 
     return text
 
+def generateTableOfContent(markdown_text) :
+    def generateAnchor(header_text) :
+        return re.sub(r'[^\w\s]', '', header_text).strip().lower().replace(" ", "-") 
+
+    ret = "\n\n"
+    headers = re.findall(r'^(#+)\s+(.*)$', markdown_text, flags=re.MULTILINE)
+
+    for header in headers :
+        header_level = len(header[0])
+        header_text = header[1]
+        ret += "  " * (header_level - 1)
+        ret += f"- [{header_text}](#{generateAnchor(header_text)})\n"
+    ret += "\n"
+
+    return ret
+
+def insertTableOfContent(markdown_text) :
+    toc = generateTableOfContent(markdown_text)
+
+    match = re.search(r'^(#+)\s+(.*)$', markdown_text, flags=re.MULTILINE)
+    idx = -1
+    if match :
+        idx = match.end()
+
+    ret = markdown_text[:idx] + toc + markdown_text[idx:]
+    return ret   
+
+
 def collectAllMarkdownFileRelativePaths(root_path : str) :
     paths = []
     for root, dirs, files in os.walk(root_path) :
@@ -222,13 +263,25 @@ def collectAllHTMLFileRelativePaths(root_path : str) :
 
     return paths
 
-def replaceLinkFromMarkdownToPDF(markdown_text) :
+def replaceLinkFromMarkdownToHTML(markdown_text) :
     link_pattern = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
 
     def replace_url(match) :
         link_text, old_url = match.groups()
         print(f"link_text : {link_text} old_url : {old_url}")
-        new_url = old_url.replace(".md", ".pdf")        
+        new_url = old_url.replace(".md", ".html")        
+        return f"[{link_text}]({new_url})"
+
+    updated_text = link_pattern.sub(replace_url, markdown_text)
+    return updated_text
+
+def replaceLinkFromHTMLToPDF(markdown_text) :
+    link_pattern = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
+
+    def replace_url(match) :
+        link_text, old_url = match.groups()
+        print(f"link_text : {link_text} old_url : {old_url}")
+        new_url = old_url.replace(".html", ".pdf")        
         return f"[{link_text}]({new_url})"
 
     updated_text = link_pattern.sub(replace_url, markdown_text)
@@ -242,6 +295,17 @@ def createMarkdownFile(content : str, root_path : str, relative_path : str) :
     with open(full_path, "w", encoding="utf-8") as result_file :
         result_file.write(content)
 
+def applyCSS(content : str) :
+    html_body = ""
+    main_file_path = os.path.dirname(os.path.abspath(__file__))
+    with open(f"{main_file_path}/apply_markdown.html", "r") as apply_markdown_file :
+        html_body = apply_markdown_file.read()
+    print(html_body)
+    print(type(html_body))
+    new_body = html_body.format(content)
+    print(new_body)
+    return new_body
+
 def createHTMLFile(content, root_path, relative_path) :
     full_path = f"{root_path}/{relative_path}"
     directoryname = os.path.dirname(full_path)
@@ -249,6 +313,7 @@ def createHTMLFile(content, root_path, relative_path) :
 
     md = MarkdownIt('gfm-like').enable('table')
     html = md.render(content)
+    html = applyCSS(html)
 
     html_path = full_path.replace(".md", ".html")
     with open(html_path, "w") as result_file :
@@ -294,34 +359,33 @@ if __name__ == "__main__" :
 
         print(f"======= File Name : {path} ======\n")
 
-        converted_content = replace_link_urls(content)
-        print(converted_content)
+        content = replace_link_urls(content)
+        print(content)
 
-        csv_converted_content = replace_csv(converted_content, "./test/markdown", path)
-        print(csv_converted_content)
+        content = replace_csv(content, "./test/markdown", path)
+        print(content)
 
-        newline_content = replaceNewLineInMarkdownTable(csv_converted_content)
-        print(newline_content)
+        content = replaceNewLineInMarkdownTable(content)
+        print(content)
 
-        createMarkdownFile(newline_content, "./test/markdown", path)
+        content = insertTableOfContent(content)
+        print(content)
 
-    createResourceDirectory("./test/markdown", "./test/markdown-pdf")
+        createMarkdownFile(content, "./test/markdown", path)
+    removeCSVFiles("./test/markdown")
+
+    createResourceDirectory("./test/markdown", "./test/html")
     paths = collectAllMarkdownFileRelativePaths("./test/markdown")
     for path in paths :
         content = readMarkdownFile("./test/markdown", path)
 
-        converted_content = replaceLinkFromMarkdownToPDF(content)
+        converted_content = replaceLinkFromMarkdownToHTML(content)
         print(converted_content)
         
-        createMarkdownFile(converted_content, "./test/markdown-pdf", path)
+        createHTMLFile(converted_content, "./test/html", path)
+    
 
-    createResourceDirectory("./test/markdown-pdf", "./test/html")
-    paths = collectAllMarkdownFileRelativePaths("./test/markdown-pdf")
-    for path in paths :
-        content = readMarkdownFile("./test/markdown-pdf", path)
-        createHTMLFile(content, "./test/html", path)
-
-    createResourceDirectory("./test/markdown-pdf", "./test/pdf")
+    createResourceDirectory("./test/html", "./test/pdf")
     paths = collectAllHTMLFileRelativePaths("./test/html")
     for path in paths :
         content = readHTMLFile("./test/html", path)
