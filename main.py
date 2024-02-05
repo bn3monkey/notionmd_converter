@@ -1,15 +1,12 @@
-# Before Using it, please run `python -m pip install markdown-it-py`
 # Before using it, please run `python -m pip install pandas`
 # Before using it, please run `python -m pip install tabulate`
 # Before using it, please run `python -m pip install linkify-it-py`
-
-# Before using it, please run `python -m pip install xhtml2pdf `
+# Before using it, please run `python -m pip install selenium`
 
 # Before run it, `source venv/Scripts/activate`
 # defendency markdown-it-py, pandas, tabulate``
 
-
-from markdown_it import MarkdownIt
+import markdown
 import os
 import glob
 import shutil
@@ -18,8 +15,9 @@ import urllib.parse
 import sys
 import unicodedata
 import pandas
-# from xhtml2pdf import pisa   
-
+import base64
+from selenium import webdriver
+import time
 
 print(sys.getdefaultencoding())
 
@@ -311,13 +309,18 @@ def createHTMLFile(content, root_path, relative_path) :
     directoryname = os.path.dirname(full_path)
     os.makedirs(directoryname, exist_ok=True)
 
-    md = MarkdownIt('gfm-like').enable('table')
-    html = md.render(content)
+    md = markdown.Markdown(extensions=['tables', 'toc'])
+    html = md.convert(content)
+    print(md.toc)
+    input("")
+    
     html = applyCSS(html)
 
     html_path = full_path.replace(".md", ".html")
     with open(html_path, "w") as result_file :
         result_file.write(html)
+
+
 
 def createPDFFile(content : str, root_path : str, relative_path : str) :
     full_path = f"{root_path}/{relative_path}"
@@ -326,8 +329,17 @@ def createPDFFile(content : str, root_path : str, relative_path : str) :
     os.makedirs(directoryname, exist_ok=True)
 
     pdf_path = full_path.replace(".html", ".pdf")
-    with open(pdf_path, "w+b") as pdf_file :
-        pisa.CreatePDF(content, dest = pdf_file, encoding="utf-8")
+
+    driver = webdriver.Chrome()
+    driver.execute_script("document.write(arguments[0]);", content)
+    
+    options={"paperWidth": 8.3, "paperHeight":11.7, "marginTop": 0, "marginBottom":0, "marginLeft":0, "marginRight":0}
+    pdf_data = driver.execute_cdp_cmd("Page.printToPDF",options)
+    pdf_data = pdf_data["data"]
+    if pdf_path is not None:
+        with open(pdf_path, "wb") as f :
+            f.write(base64.b64decode(pdf_data))
+            f.close()
         
 
 if __name__ == "__main__" : 
@@ -389,21 +401,4 @@ if __name__ == "__main__" :
     paths = collectAllHTMLFileRelativePaths("./test/html")
     for path in paths :
         content = readHTMLFile("./test/html", path)
-        createPDFFile(content, "./test/pdf", path)     
-
-# print(f"======= File Parse Tree : {file} ======\n")
-
-# tokens = md.parse(content)
-# with open(f"./test/log/token_{count}.txt", "w") as token_file :
-#     for token in tokens :
-#         print(token)
-#         token_file.write(f"{token}\n")
-
-# filtered_tokens = [token for token in tokens if token.type == 'inline' ]
-# with open(f"./test/log/filtered_token_{count}.txt", "w") as token_file :
-#     for token in filtered_tokens :
-#         print(token)
-#         token_file.write(f"{token}\n")
-
-
-# print(f"======= File Parse Tree : {file} ======\n")
+        createPDFFile(content, "./test/pdf", path)
