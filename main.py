@@ -358,7 +358,7 @@ def createHTMLFile(content, root_path, relative_path) :
     os.makedirs(directoryname, exist_ok=True)
 
     html_path = full_path.replace(".md", ".html")
-    with open(html_path, "w") as result_file :
+    with open(html_path, "w", encoding="utf-8") as result_file :
         result_file.write(content)
 
 
