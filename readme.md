@@ -14,7 +14,7 @@ Notion으로 뽑은 Markdown과 CSS 파일을 아래와 같이 변환합니다.
 
 1. 파이썬 가상환경 만들기
 ```bash
-python -m venv
+python -m venv venv
 ```
 
 2. 가상환경 활성화 하기
