@@ -18,6 +18,7 @@ import unicodedata
 import pandas
 import base64
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 import time
 
@@ -300,16 +301,15 @@ def replaceLinkFromMarkdownToHTML(markdown_text) :
     updated_text = link_pattern.sub(replace_url, markdown_text)
     return updated_text
 
-def replaceLinkFromHTMLToPDF(markdown_text) :
-    link_pattern = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
+def replaceLinkFromHTMLToPDF(html_text) :
+    link_pattern = re.compile(r'<a\s+href="([^"]+\.html)">')
 
     def replace_url(match) :
-        link_text, old_url = match.groups()
-        print(f"link_text : {link_text} old_url : {old_url}")
+        old_url = match.group(0)
         new_url = old_url.replace(".html", ".pdf")        
-        return f"[{link_text}]({new_url})"
+        return f"{new_url}"
 
-    updated_text = link_pattern.sub(replace_url, markdown_text)
+    updated_text = link_pattern.sub(replace_url, html_text)
     return updated_text
 
 def createMarkdownFile(content : str, root_path : str, relative_path : str) :
@@ -371,8 +371,12 @@ def createPDFFile(content : str, root_path : str, relative_path : str) :
 
     pdf_path = full_path.replace(".html", ".pdf")
 
-    driver = webdriver.Chrome()
+    chrome_options = Options()
+    chrome_options.add_argument('--headless')
+
+    driver = webdriver.Chrome(options=chrome_options)
     driver.execute_script("document.write(arguments[0]);", content)
+    time.sleep(1)
     
     options={"paperWidth": 8.3, "paperHeight":11.7, "marginTop": 0, "marginBottom":0, "marginLeft":0, "marginRight":0}
     pdf_data = driver.execute_cdp_cmd("Page.printToPDF",options)
@@ -456,4 +460,9 @@ if __name__ == "__main__" :
     paths = collectAllHTMLFileRelativePaths("./test/html")
     for path in paths :
         content = readHTMLFile("./test/html", path)
+        print(content)
+
+        content = replaceLinkFromHTMLToPDF(content)
+        print(content)
+
         createPDFFile(content, "./test/pdf", path)
