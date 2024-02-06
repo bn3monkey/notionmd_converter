@@ -2,6 +2,7 @@
 # Before using it, please run `python -m pip install tabulate`
 # Before using it, please run `python -m pip install linkify-it-py`
 # Before using it, please run `python -m pip install selenium`
+# Before using it, please run `python -m pip install beautifulsoup4`
 
 # Before run it, `source venv/Scripts/activate`
 # defendency markdown-it-py, pandas, tabulate``
@@ -17,6 +18,7 @@ import unicodedata
 import pandas
 import base64
 from selenium import webdriver
+from bs4 import BeautifulSoup
 import time
 
 print(sys.getdefaultencoding())
@@ -207,24 +209,49 @@ def replaceNewLineInMarkdownTable(text) :
 
     return text
 
-def generateTableOfContent(markdown_text) :
+def generateHeaderMetadata(markdown_text) :
     def generateAnchor(header_text) :
         return re.sub(r'[^\w\s]', '', header_text).strip().lower().replace(" ", "-") 
+    
+    def removeMarkdownSyntax(text) :
+         # **text**를 text로 변경
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
 
-    ret = "\n\n"
+        # `text`를 text로 변경
+        text = re.sub(r'`([^`]+)`', r'\1', text)
+
+        return text
+
     headers = re.findall(r'^(#+)\s+(.*)$', markdown_text, flags=re.MULTILINE)
 
+    header_metadata = []
+
+    count = 0
     for header in headers :
         header_level = len(header[0])
         header_text = header[1]
-        ret += "  " * (header_level - 1)
-        ret += f"- [{header_text}](#{generateAnchor(header_text)})\n"
+        header_text = removeMarkdownSyntax(header_text)
+
+        header_anchor = generateAnchor(header_text)
+        
+        header_metadata.append({ "level" : header_level, "text" : header_text, "anchor" : f"{count}-{header_anchor}"})        
+        count = count + 1
+    
+    return header_metadata
+
+
+def generateTableOfContent(header_metadata) :
+    ret = "\n\n"
+    for header in header_metadata :
+        text = header["text"]
+        anchor = header["anchor"]
+        ret += "\t" * (header["level"] -1) 
+        ret += f"- [{text}](#{anchor})\n"
     ret += "\n"
 
     return ret
 
-def insertTableOfContent(markdown_text) :
-    toc = generateTableOfContent(markdown_text)
+def insertTableOfContent(markdown_text, toc) :
 
     match = re.search(r'^(#+)\s+(.*)$', markdown_text, flags=re.MULTILINE)
     idx = -1
@@ -293,14 +320,35 @@ def createMarkdownFile(content : str, root_path : str, relative_path : str) :
     with open(full_path, "w", encoding="utf-8") as result_file :
         result_file.write(content)
 
-def applyCSS(content : str) :
+def createHTMLContent(markdown_text : str) :
+    md = markdown.Markdown(extensions=['tables'])
+    html = md.convert(markdown_text)
+    return html
+
+def addAnchorToHTMLHeader(html_content, header_map) :
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    headers = soup.find_all(re.compile('^h\d'))
+    
+    count = 0
+    for header in headers :
+        header_metadata = header_map[count]
+        anchor = header_metadata["anchor"]
+
+        header["id"] = anchor
+        count += 1
+
+
+    return str(soup)
+
+def applyCSS(html_content : str) :
     html_body = ""
     main_file_path = os.path.dirname(os.path.abspath(__file__))
     with open(f"{main_file_path}/apply_markdown.html", "r") as apply_markdown_file :
         html_body = apply_markdown_file.read()
     print(html_body)
     print(type(html_body))
-    new_body = html_body.format(content)
+    new_body = html_body.format(html_content)
     print(new_body)
     return new_body
 
@@ -309,16 +357,9 @@ def createHTMLFile(content, root_path, relative_path) :
     directoryname = os.path.dirname(full_path)
     os.makedirs(directoryname, exist_ok=True)
 
-    md = markdown.Markdown(extensions=['tables', 'toc'])
-    html = md.convert(content)
-    print(md.toc)
-    input("")
-    
-    html = applyCSS(html)
-
     html_path = full_path.replace(".md", ".html")
     with open(html_path, "w") as result_file :
-        result_file.write(html)
+        result_file.write(content)
 
 
 
@@ -380,7 +421,10 @@ if __name__ == "__main__" :
         content = replaceNewLineInMarkdownTable(content)
         print(content)
 
-        content = insertTableOfContent(content)
+        metadata = generateHeaderMetadata(content)
+        toc = generateTableOfContent(metadata)
+
+        content = insertTableOfContent(content, toc)
         print(content)
 
         createMarkdownFile(content, "./test/markdown", path)
@@ -391,10 +435,21 @@ if __name__ == "__main__" :
     for path in paths :
         content = readMarkdownFile("./test/markdown", path)
 
-        converted_content = replaceLinkFromMarkdownToHTML(content)
-        print(converted_content)
+        content = replaceLinkFromMarkdownToHTML(content)
+        print(content)
+
+        metadata = generateHeaderMetadata(content)
+
+        content = createHTMLContent(content)
+        print(content)
+
+        content = addAnchorToHTMLHeader(content, metadata)
+        print(content)
         
-        createHTMLFile(converted_content, "./test/html", path)
+        content = applyCSS(content)
+        print(content)
+        
+        createHTMLFile(content, "./test/html", path)
     
 
     createResourceDirectory("./test/html", "./test/pdf")
