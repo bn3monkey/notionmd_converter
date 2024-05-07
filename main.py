@@ -63,12 +63,14 @@ def createDirectoryNameMap(directory_paths) :
 def changeFileName(filename) :
     print(filename)
     words = filename.split('.')
-    name = words[0]
-    extension = words[1]
+    extension=words[-1]    
+   
      
     is_png_file = extension == 'png' or extension == 'PNG'
-    converted_name = removeUnnecessaryWord(name, is_png_file)
-    return f"{converted_name}.{extension}"
+   
+    for i in range(len(words) - 1):  # 마지막 요소는 제외하도록 범위를 설정합니다.
+        words[i] = removeUnnecessaryWord(words[i], is_png_file)
+    return ".".join(words)
 
 def linkFileName(file_path) :
     names = file_path.split('/')
@@ -122,7 +124,7 @@ def createResourceDirectory(input_path : str, output_path : str) :
 
         for file in files :
             _, extension = os.path.splitext(file)
-            if extension.lower() in ['.jpg', '.png', '.bmp'] :
+            if extension.lower() in ['.jpg', '.png', '.bmp','.svg'] :
                 src_path = os.path.join(root, file)
                 dest_path = os.path.join(output_directory_path, file)
                 shutil.copy(src_path, dest_path)
