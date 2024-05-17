@@ -380,7 +380,7 @@ def createPDFFile(content : str, root_path : str, relative_path : str) :
     driver.execute_script("document.write(arguments[0]);", content)
     time.sleep(1)
     
-    options={"paperWidth": 8.3, "paperHeight":11.7, "marginTop": 0, "marginBottom":0, "marginLeft":0, "marginRight":0}
+    options={"printBackground" : True, "paperWidth": 8.3, "paperHeight":11.7, "marginTop": 0, "marginBottom":0, "marginLeft":0, "marginRight":0}
     pdf_data = driver.execute_cdp_cmd("Page.printToPDF",options)
     pdf_data = pdf_data["data"]
     if pdf_path is not None:
