@@ -322,8 +322,9 @@ def createMarkdownFile(content : str, root_path : str, relative_path : str) :
     with open(full_path, "w", encoding="utf-8") as result_file :
         result_file.write(content)
 
+
 def createHTMLContent(markdown_text : str) :
-    md = markdown.Markdown(extensions=['tables'])
+    md = markdown.Markdown(extensions=['codehilite','extra'])
     html = md.convert(markdown_text)
     return html
 
@@ -333,12 +334,16 @@ def addAnchorToHTMLHeader(html_content, header_map) :
     headers = soup.find_all(re.compile('^h\d'))
     
     count = 0
+    
+    header_map_size = len(header_map)
+    print(f"Header Map Size : {header_map_size}")
+    headers_size = len(headers)
+    print(f"Headers : {headers_size}")
+    
+    for header_element in header_map :
+        print(f"header_element : {header_element}")        
     for header in headers :
-        header_metadata = header_map[count]
-        anchor = header_metadata["anchor"]
-
-        header["id"] = anchor
-        count += 1
+        print(f"header : {header}")
 
 
     return str(soup)
