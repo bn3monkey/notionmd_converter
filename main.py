@@ -207,7 +207,7 @@ def replaceNewLineInMarkdownTable(text) :
         # print(match)
         # input("")
         sentence = match[0]
-        replaced_sentence = sentence.replace('\n', '</br>')
+        replaced_sentence = sentence.replace('\n', '<br>')
         text = text.replace(f'|{sentence}|', f'|{replaced_sentence}|')
 
     return text
