@@ -84,6 +84,8 @@ def linkFileName(file_path) :
         ret = f"{converted_directory_name}/{converted_filename}"
     else :
         ret = converted_filename
+    
+    ret = urllib.parse.unquote(ret, 'utf-8')
     ret = unicodedata.normalize('NFC', ret)
     return ret
 
