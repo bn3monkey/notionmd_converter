@@ -154,8 +154,8 @@ def readHTMLFile(root_path : str, relative_path : str) :
     return content
 
 def replace_link_urls(markdown_text) :
-    link_pattern = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
-
+    link_pattern = re.compile(r'\[([^\]]+)\]\(([^()]*\([^()]*\)[^()]*)\)')
+    
     def replace_url(match) :
         link_text, old_url = match.groups()
         print(f"link_text : {link_text} old_url : {old_url}")
@@ -181,7 +181,7 @@ def replace_csv(markdown_text, root_path, relative_path) :
     full_path = f"{root_path}/{relative_path}"
     directoryname = os.path.dirname(full_path)
 
-    link_pattern = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
+    link_pattern = re.compile(r'\[([^\]]+)\]\(([^()]*\([^()]*\)[^()]*)\)')
 
 
     def replace_url(match) :
@@ -292,7 +292,7 @@ def collectAllHTMLFileRelativePaths(root_path : str) :
     return paths
 
 def replaceLinkFromMarkdownToHTML(markdown_text) :
-    link_pattern = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
+    link_pattern = re.compile(r'\[([^\]]+)\]\(([^()]*\([^()]*\)[^()]*)\)')
 
     def replace_url(match) :
         link_text, old_url = match.groups()
@@ -425,6 +425,7 @@ if __name__ == "__main__" :
 
         content = replace_link_urls(content)
         print(content)
+        input("Press Enter!")
 
         content = replace_csv(content, "./test/markdown", path)
         print(content)
