@@ -42,17 +42,33 @@ def collectDirectoryAndFileNames(directory : str) :
     return directory_paths, filename_paths 
 
 
-def removeUnnecessaryWord(directory_name, is_png_file = False) :
+def removeUnnecessaryWordInDierectoryName(directory_name : str) : 
     words = directory_name.split(' ')
-    if is_png_file == False:
+    if len(words) > 1 :
+        words.pop()
+    
+    return ' '.join(words)
+
+def removeUnnecessaryWordInFileName(filename : str) :
+    remained_path, extension = os.path.splitext(filename)
+    words = remained_path.split(' ')
+    if extension.lower() in ['.md'] : 
         if len(words) > 1 :
             words.pop()
     
-    return '_'.join(words)
+    newPath = ' '.join(words)
+    return f"{newPath}{extension}"
+
+def changeSpaceToUnderbarInString(name : str) :
+    newName = name.replace(" ", "_")
+    return newName
 
 def linkDirectoryName(directory_path) :
     names = directory_path.split('/')
-    converted_names = [removeUnnecessaryWord(name) for name in names]
+
+    converted_names = [removeUnnecessaryWordInDierectoryName(name) for name in names]
+    converted_names = [changeSpaceToUnderbarInString(name) for name in converted_names]
+
     ret = '/'.join(converted_names)
     ret = unicodedata.normalize('NFC', ret)
     return ret
@@ -60,24 +76,20 @@ def linkDirectoryName(directory_path) :
 def createDirectoryNameMap(directory_paths) :
     return {key : linkDirectoryName(key) for key in directory_paths}
 
-def changeFileName(filename) :
-    print(filename)
-    words = filename.split('.')
-    extension=words[-1]    
-   
-     
-    is_png_file = extension == 'png' or extension == 'PNG'
-   
-    for i in range(len(words) - 1):  # 마지막 요소는 제외하도록 범위를 설정합니다.
-        words[i] = removeUnnecessaryWord(words[i], is_png_file)
-    return ".".join(words)
 
 def linkFileName(file_path) :
+    file_path = urllib.parse.unquote(file_path, 'utf-8')
+    file_path = unicodedata.normalize('NFC', file_path)
+
     names = file_path.split('/')
     filename = names[-1]
     directory_names = names[:-1]
-    converted_directory_names = [removeUnnecessaryWord(name) for name in directory_names]
-    converted_filename = changeFileName(filename)
+
+    converted_directory_names = [removeUnnecessaryWordInDierectoryName(name) for name in directory_names]
+    converted_directory_names = [changeSpaceToUnderbarInString(name) for name in converted_directory_names]
+    converted_filename = removeUnnecessaryWordInFileName(filename)
+    converted_filename = changeSpaceToUnderbarInString(converted_filename)
+
     ret = ""
     if len(converted_directory_names) != 0 :
         converted_directory_name = '/'.join(converted_directory_names)
@@ -85,8 +97,6 @@ def linkFileName(file_path) :
     else :
         ret = converted_filename
     
-    ret = urllib.parse.unquote(ret, 'utf-8')
-    ret = unicodedata.normalize('NFC', ret)
     return ret
 
 def createFileNameMap(file_paths) :
@@ -126,7 +136,7 @@ def createResourceDirectory(input_path : str, output_path : str) :
 
         for file in files :
             _, extension = os.path.splitext(file)
-            if extension.lower() in ['.jpg', '.png', '.bmp','.svg'] :
+            if extension.lower() in ['.jpg', '.png', '.bmp','.svg', '.zip', '.mp4'] :
                 src_path = os.path.join(root, file)
                 dest_path = os.path.join(output_directory_path, file)
                 shutil.copy(src_path, dest_path)
@@ -156,19 +166,19 @@ def readHTMLFile(root_path : str, relative_path : str) :
     return content
 
 def replace_link_urls(markdown_text) :
-    link_pattern = re.compile(r'\[([^\]]+)\]\(([^()]*\([^()]*\)[^()]*)\)')
-    
+    link_pattern = re.compile(r'\[([^\]]+)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)')
+
     def replace_url(match) :
         link_text, old_url = match.groups()
         print(f"link_text : {link_text} old_url : {old_url}")
         
         if old_url.startswith("https://") :
             return f"[{link_text}]({old_url})"
-        
-        linkUTF8 = convertURLToUTF8(old_url)
-        new_url = linkFileName(linkUTF8)
-        print(f"new_url : {new_url}")
-        return f"[{link_text}]({new_url})"
+                
+        linkUTF8 = convertURLToUTF8(link_text)
+        new_url = linkFileName(old_url)
+        print(f"new_link : {linkUTF8} new_url : {new_url}")
+        return f"[{linkUTF8}]({new_url})"
 
     updated_text = link_pattern.sub(replace_url, markdown_text)
     return updated_text
@@ -183,7 +193,7 @@ def replace_csv(markdown_text, root_path, relative_path) :
     full_path = f"{root_path}/{relative_path}"
     directoryname = os.path.dirname(full_path)
 
-    link_pattern = re.compile(r'\[([^\]]+)\]\(([^()]*\([^()]*\)[^()]*)\)')
+    link_pattern = re.compile(r'\[([^\]]+)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)')
 
 
     def replace_url(match) :
@@ -214,24 +224,31 @@ def replaceNewLineInMarkdownTable(text) :
 
     return text
 
-def generateHeaderMetadata(markdown_text) :
-    def generateAnchor(header_text) :
-        return re.sub(r'[^\w\s]', '', header_text).strip().lower().replace(" ", "-") 
+def generateAnchor(header_text) :
+        text = re.sub(r'[^\w\s]', '', header_text).strip().lower().replace(" ", "-")
+        
+        # print(f"this is anchor : {text}")
+        # input()
+
+        return text 
     
-    def removeMarkdownSyntax(text) :
-         # **text**를 text로 변경
-        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+def removeMarkdownSyntax(text) :
+        # **text**를 text로 변경
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
 
-        # `text`를 text로 변경
-        text = re.sub(r'`([^`]+)`', r'\1', text)
+    # `text`를 text로 변경
+    text = re.sub(r'`([^`]+)`', r'\1', text)
 
-        return text
+    return text
+
+def generateHeaderList(markdown_text) :
 
     headers = re.findall(r'^(#+)\s+(.*)$', markdown_text, flags=re.MULTILINE)
 
-    header_metadata = []
-
-    count = 0
+    header_metadata_list = []
+    
+    header_count = {}
+    
     for header in headers :
         header_level = len(header[0])
         header_text = header[1]
@@ -239,10 +256,33 @@ def generateHeaderMetadata(markdown_text) :
 
         header_anchor = generateAnchor(header_text)
         
-        header_metadata.append({ "level" : header_level, "text" : header_text, "anchor" : f"{count}-{header_anchor}"})        
+        if header_text in header_count :
+            current_header_count = header_count[header_text]
+            header_anchor += f"-{current_header_count}"
+            header_count[header_text] += 1
+        else :
+            header_count[header_text] = 1
+
+        header_metadata_list.append({ "level" : header_level, "text" : header_text, "anchor" : f"{header_anchor}"})        
+    
+    return header_metadata_list
+
+def generateHeaderMap(markdown_text) :  
+
+    headers = re.findall(r'^(#+)\s+(.*)$', markdown_text, flags=re.MULTILINE)
+    header_metadata_map = {}
+
+    count = 0
+    for header in headers :
+        header_text = header[1]
+        header_text = removeMarkdownSyntax(header_text)
+
+        header_anchor = generateAnchor(header_text)
+                
+        header_metadata_map[header_text] = header_anchor
         count = count + 1
     
-    return header_metadata
+    return header_metadata_map
 
 
 def generateTableOfContent(header_metadata) :
@@ -335,18 +375,30 @@ def addAnchorToHTMLHeader(html_content, header_map) :
 
     headers = soup.find_all(re.compile('^h\d'))
     
-    count = 0
+    
+    header_count = {}
     
     header_map_size = len(header_map)
     print(f"Header Map Size : {header_map_size}")
     headers_size = len(headers)
     print(f"Headers : {headers_size}")
     
-    for header_element in header_map :
+    for header_element in header_map.items() :
         print(f"header_element : {header_element}")        
     for header in headers :
-        print(f"header : {header}")
+        header_text = header.text
+        anchor = header_map[header_text]
 
+        if header_text in header_count :
+            current_header_count = header_count[header_text]
+            anchor += f"-{current_header_count}"
+            header_count[header_text] += 1
+        else :
+            header_count[header_text] = 1
+        
+        header["id"] = anchor
+        print(f"header : {header} header_txt : {header_text} anchor : {anchor}")
+        # input()
 
     return str(soup)
 
@@ -427,7 +479,7 @@ if __name__ == "__main__" :
 
         content = replace_link_urls(content)
         print(content)
-        input("Press Enter!")
+        # input("Press Enter!")
 
         content = replace_csv(content, "./test/markdown", path)
         print(content)
@@ -435,8 +487,8 @@ if __name__ == "__main__" :
         content = replaceNewLineInMarkdownTable(content)
         print(content)
 
-        metadata = generateHeaderMetadata(content)
-        toc = generateTableOfContent(metadata)
+        header_list = generateHeaderList(content)
+        toc = generateTableOfContent(header_list)
 
         content = insertTableOfContent(content, toc)
         print(content)
@@ -452,7 +504,7 @@ if __name__ == "__main__" :
         content = replaceLinkFromMarkdownToHTML(content)
         print(content)
 
-        metadata = generateHeaderMetadata(content)
+        metadata = generateHeaderMap(content)
 
         content = createHTMLContent(content)
         print(content)
