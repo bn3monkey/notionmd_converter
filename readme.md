@@ -56,4 +56,4 @@ pip freeze > requirements.txt
 
 # 주의사항
 
-1. 노션 제목에 쉼표나 줄바꿈(Shift + Enter)를 넣지 마세요.
+1. 노션 제목에 줄바꿈(Shift + Enter)를 넣지 마세요.
