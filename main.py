@@ -24,6 +24,8 @@ import time
 
 print(sys.getdefaultencoding())
 
+link_pattern_regx = r'\[([^\]]+)\]\(([^()]+(?:\([^()]*\)[^()]*)*)\)'
+
 def collectDirectoryAndFileNames(directory : str) :
 
     directory_paths = []
@@ -166,7 +168,7 @@ def readHTMLFile(root_path : str, relative_path : str) :
     return content
 
 def replace_link_urls(markdown_text) :
-    link_pattern = re.compile(r'\[([^\]]+)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)')
+    link_pattern = re.compile(link_pattern_regx)
 
     def replace_url(match) :
         link_text, old_url = match.groups()
@@ -193,7 +195,7 @@ def replace_csv(markdown_text, root_path, relative_path) :
     full_path = f"{root_path}/{relative_path}"
     directoryname = os.path.dirname(full_path)
 
-    link_pattern = re.compile(r'\[([^\]]+)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)')
+    link_pattern = re.compile(link_pattern_regx)
 
 
     def replace_url(match) :
@@ -334,7 +336,7 @@ def collectAllHTMLFileRelativePaths(root_path : str) :
     return paths
 
 def replaceLinkFromMarkdownToHTML(markdown_text) :
-    link_pattern = re.compile(r'\[([^\]]+)\]\(([^()]*\([^()]*\)[^()]*)\)')
+    link_pattern = re.compile(link_pattern_regx)
 
     def replace_url(match) :
         link_text, old_url = match.groups()
