@@ -450,6 +450,9 @@ def createPDFFile(content : str, root_path : str, relative_path : str) :
             f.close()
         
 
+def removeDirectory(path : str) :
+    shutil.rmtree(path)
+
 if __name__ == "__main__" : 
     directory_paths, filename_paths = collectDirectoryAndFileNames("./test/input")
     for directoryname in directory_paths :
@@ -467,6 +470,10 @@ if __name__ == "__main__" :
     filepath_map = createFileNameMap(filename_paths)
     for key, value in filepath_map.items() :
         print(f"{key} -> {value}")
+
+    removeDirectory("./test/markdown")
+    removeDirectory("./test/html")
+    removeDirectory("./test/pdf")
    
     createIntermediateDirectory("./test/input", "./test/markdown", directorypath_map, filepath_map)
         
