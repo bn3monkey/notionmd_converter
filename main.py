@@ -372,6 +372,26 @@ def createHTMLContent(markdown_text : str) :
     html = md.convert(markdown_text)
     return html
 
+def replaceMP4LinksInHTML(html_content : str) -> str :
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    for a_tag in soup.find_all('a', href=True):
+        href = a_tag['href']
+        if href.lower().endswith('.mp4'):
+            video_tag = soup.new_tag('video', controls=True, width="640")
+            source_tag = soup.new_tag('source', src=href, type="video/mp4")
+            video_tag.append(source_tag)
+            fallback = soup.new_string("Your browser doesn’t support the video tag.")
+            video_tag.append(fallback)
+
+            a_tag_parent = a_tag.parent
+            if a_tag_parent.name == 'p':
+                a_tag_parent.replace_with(video_tag)
+            else:
+                a_tag.replace_with(video_tag)
+
+    return str(soup)
+
 def addAnchorToHTMLHeader(html_content, header_map) :
     soup = BeautifulSoup(html_content, 'html.parser')
 
@@ -516,6 +536,9 @@ if __name__ == "__main__" :
         metadata = generateHeaderMap(content)
 
         content = createHTMLContent(content)
+        print(content)
+
+        content = replaceMP4LinksInHTML(content)
         print(content)
 
         content = addAnchorToHTMLHeader(content, metadata)
