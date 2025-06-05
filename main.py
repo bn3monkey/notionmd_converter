@@ -17,6 +17,7 @@ import sys
 import unicodedata
 import pandas
 import base64
+import subprocess
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
@@ -125,6 +126,14 @@ def createIntermediateDirectory(input_path : str, output_path : str, directorypa
             new_file_path = filepath_map[relative_file_path]
             new_full_file_path = os.path.join(output_path, new_file_path)
             print(f"copy File : {file_path} -> {new_full_file_path}")
+
+            if not os.path.exists(file_path) :
+                abs_path = os.path.abspath(file_path)
+                if abs_path.startswith('\\\\'):
+                    file_path = '\\\\?\\UNC\\' + abs_path[2:]
+                else:
+                    file_path = '\\\\?\\' + abs_path
+                
             shutil.copy(file_path, new_full_file_path)
 
 def createResourceDirectory(input_path : str, output_path : str) :
@@ -186,6 +195,13 @@ def replace_link_urls(markdown_text) :
     return updated_text
 
 def csvToTable(path : str) :
+    if not os.path.exists(path) :
+        abs_path = os.path.abspath(path)
+        if abs_path.startswith('\\\\'):
+            path = '\\\\?\\UNC\\' + abs_path[2:]
+        else:
+            path = '\\\\?\\' + abs_path
+
     print(f"csv path : {path}")
     df = pandas.read_csv(path)
     table = df.to_markdown(index = False)
@@ -471,7 +487,8 @@ def createPDFFile(content : str, root_path : str, relative_path : str) :
         
 
 def removeDirectory(path : str) :
-    shutil.rmtree(path)
+    if os.path.exists(path) :
+        shutil.rmtree(path)
 
 if __name__ == "__main__" : 
     directory_paths, filename_paths = collectDirectoryAndFileNames("./test/input")
