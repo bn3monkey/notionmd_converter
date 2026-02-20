@@ -1,10 +1,10 @@
-py -m venv venv
-echo "Create Virtual Environment"
-call ./venv/Scripts/activate.bat
-echo "Virtual Environment Activated"
-pip install -r requirements.txt
+@REM py -m venv venv
+@REM echo "Create Virtual Environment"
+@REM call ./venv/Scripts/activate.bat
+@REM echo "Virtual Environment Activated"
+@REM pip install -r requirements.txt
 echo "Dependency installed"
 py main.py
-echo "Run"
-deactivate
-echo "Deactivate"
+@REM echo "Run"
+@REM deactivate
+@REM echo "Deactivate"

@@ -1,3 +1,18 @@
+# Requirements (example):
+# python -m pip install markdown pandas tabulate linkify-it-py selenium beautifulsoup4 pymdown-extensions
+#
+# Usage examples:
+#   python convert.py --out 1
+#   python convert.py --out 2
+#   python convert.py --out 3
+#   python convert.py --out 1,3
+#   python convert.py --out 123
+#   python convert.py --out 1 2 3
+#
+# Notes:
+# - 1=HTML, 2=Markdown, 3=PDF
+# - If HTML/PDF are requested, Markdown intermediate will be generated as needed.
+
 # Before using it, please run `python -m pip install pandas`
 # Before using it, please run `python -m pip install tabulate`
 # Before using it, please run `python -m pip install linkify-it-py`
@@ -46,9 +61,10 @@ def collectDirectoryAndFileNames(directory : str) :
 
 
 def removeUnnecessaryWordInDierectoryName(directory_name : str) : 
+    return directory_name
     words = directory_name.split(' ')
-    if len(words) > 1 :
-        words.pop()
+    # if len(words) > 1 :
+    #     words.pop()
     
     return ' '.join(words)
 
@@ -257,6 +273,9 @@ def removeMarkdownSyntax(text) :
     # `text`를 text로 변경
     text = re.sub(r'`([^`]+)`', r'\1', text)
 
+    # ~~strikethrough~~
+    text = re.sub(r'~~(.*?)~~', r'\1', text)
+
     return text
 
 def generateHeaderList(markdown_text) :
@@ -384,7 +403,7 @@ def createMarkdownFile(content : str, root_path : str, relative_path : str) :
 
 
 def createHTMLContent(markdown_text : str) :
-    md = markdown.Markdown(extensions=['codehilite','extra'])
+    md = markdown.Markdown(extensions=['codehilite','extra','pymdownx.tilde'])
     html = md.convert(markdown_text)
     return html
 
@@ -425,6 +444,9 @@ def addAnchorToHTMLHeader(html_content, header_map) :
         print(f"header_element : {header_element}")        
     for header in headers :
         header_text = header.text
+        if header_text not in header_map:
+            print(f"[WARN] header not found in map: {header_text}")
+            continue
         anchor = header_map[header_text]
 
         if header_text in header_count :
